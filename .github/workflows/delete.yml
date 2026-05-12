@@ -1,0 +1,51 @@
+name: 🔥 Purge videos folder from history
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "YES" to confirm you want to delete the videos folder and rewrite history'
+        required: true
+        default: ''
+        type: string
+
+jobs:
+  purge-videos:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Confirm deletion
+        if: ${{ github.event.inputs.confirm != 'YES' }}
+        run: |
+          echo "❌ Aborted: you must type 'YES' in the confirm field to proceed."
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install git-filter-repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-filter-repo
+
+      - name: Remove videos folder from entire history
+        run: |
+          git filter-repo --path videos --invert-paths --force
+
+      - name: Restore remote origin
+        run: |
+          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - name: Force push cleaned history
+        run: |
+          git push origin --force --all
+          git push origin --force --tags
+
+      - name: Show result
+        run: |
+          echo "✅ Videos folder has been purged from all commits."
+          echo "🚨 History was rewritten – collaborators must re-clone."
